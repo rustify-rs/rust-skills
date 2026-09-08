@@ -1,7 +1,7 @@
 {
   "name": "rust-skills",
   "version": "0.3.0",
-  "description": "Claude Code agent skills for the Rust review clippy can't do: error types as an API, async cancel-safety, public-surface longevity, when a module should become a crate. Before/after examples plus a checklist per axis.",
+  "description": "Opinionated agent skills for the Rust review clippy can't do.",
   "author": {
     "name": "rustify.rs",
     "url": "https://rustify.rs"
