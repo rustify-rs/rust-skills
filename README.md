@@ -24,7 +24,7 @@ project):
 
 ```bash
 git clone https://github.com/rustify-rs/rust-skills.git
-cp -r rust-skills/skills/rust-error-design ~/.claude/skills/
+cp -r rust-skills/skills/* ~/.claude/skills/
 ```
 
 Claude Code picks it up on next launch. Invoke explicitly with `/rust-error-design` or let
@@ -35,9 +35,9 @@ it trigger on matching work.
 | Skill | Question it answers | Status |
 |---|---|---|
 | `rust-error-design` | Can the caller *do* anything with what you return? | ✅ ready |
-| `rust-api-design` | Will this public signature still be right in 6 months? | 🚧 planned |
-| `rust-idioms` | The mechanics clippy misses (`Cow`, `impl Trait`, newtype, `matches!`) | 🚧 planned |
-| `rust-async` | Is this `async fn` cancel-safe? `spawn` or `block_in_place`? | 🚧 planned |
+| `rust-idioms` | The shape choices clippy stays silent on (`&str`, newtype, `Cow`, enum params) | ✅ ready |
+| `rust-async` | What happens when this future is dropped mid-poll? | ✅ ready |
+| `rust-api-design` | What breaks downstream when you change this `pub` item? | ✅ ready |
 | `rust-crate-structure` | When does this module become a crate? Feature-flag layout. | 🚧 planned |
 | `rust-testing` | `nextest`, fixtures, unit vs integration boundary, `matches!` asserts | 🚧 planned |
 | `rust-perf` | Gratuitous `clone`, allocation in hot paths, `Cow`, when to bench | 🚧 planned |
