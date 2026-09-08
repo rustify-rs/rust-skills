@@ -1,6 +1,6 @@
 {
   "name": "rust-skills",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Opinionated agent skills for reviewing and designing good Rust: error types as an API, idioms clippy misses, async cancel-safety, public-surface longevity. Ships a self-improving learnings loop.",
   "author": {
     "name": "rustify.rs",

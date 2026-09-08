@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rust-review report</title>
+<script>
+  /* pre-paint: apply saved theme before first paint, no flash. Base is light. */
+  try {
+    var t = localStorage.getItem("rust-review-theme");
+    if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
+  } catch (e) { /* private mode, stays light */ }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+<!--
+  rust-review HTML report shell. Static; `rust-review --report` copies it verbatim to
+  `.rust-review/index.html` and writes the run data two ways:
+    1. inline, replacing the JSON inside <script id="rust-review-data"> (double-click works)
+    2. as sibling `.rust-review/findings.json` (diffing / CI / re-render)
+  On load: inline blob if it has findings, else fetch ./findings.json. Shape:
+    { "meta": { "target","base","generated","reproduce" },
+      "findings": [ { "id","sev":"bug|risk|nit","rubric","loc","problem","fix",
+                      "before"?, "after"?, "note"? } ] }
+  problem/fix/note are inline HTML (use <code>). before/after are raw Rust, escaped + highlighted here.
+-->
+
+<style>
+:root {
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f4f4f5;
+  --fg: #18181b;
+  --fg-soft: #52525b;
+  --muted: #a1a1aa;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --accent: #e2502a;
+  --accent-fg: #ffffff;
+  --accent-soft: #fdeee9;
+  --bug: #dc2626;
+  --risk: #d97706;
+  --nit: #2563eb;
+  --bug-tint: #fef2f2;
+  --risk-tint: #fffbeb;
+  --nit-tint: #eff6ff;
+  --code-bg: #f8f8f8;
+  --code-fg: #27272a;
+  --add-tint: #f0fdf4;
+  --add-border: #bbf7d0;
+  --add-fg: #15803d;
+  --del-tint: #fef2f2;
+  --del-border: #fecaca;
+  --del-fg: #b91c1c;
+  --h-kw: #cf222e;
+  --h-str: #0a7d33;
+  --h-fn: #6639ba;
+  --h-type: #0550ae;
+  --h-num: #b31d28;
+  --h-com: #6e7781;
+  --radius: 8px;
+  --shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+}
+:root[data-theme="dark"] {
+  --bg: #09090b;
+  --surface: #18181b;
+  --surface-2: #27272a;
+  --fg: #fafafa;
+  --fg-soft: #a1a1aa;
+  --muted: #71717a;
+  --border: #27272a;
+  --border-strong: #3f3f46;
+  --accent: #f26a45;
+  --accent-fg: #18181b;
+  --accent-soft: #2a1a12;
+  --bug: #f87171;
+  --risk: #fbbf24;
+  --nit: #60a5fa;
+  --bug-tint: #2a1414;
+  --risk-tint: #291f0d;
+  --nit-tint: #111d33;
+  --code-bg: #131316;
+  --code-fg: #e4e4e7;
+  --add-tint: #0f2417;
+  --add-border: #1e4620;
+  --add-fg: #4ade80;
+  --del-tint: #2a1414;
+  --del-border: #5a2020;
+  --del-fg: #f87171;
+  --h-kw: #ff7b72;
+  --h-str: #a5d6ff;
+  --h-fn: #d2a8ff;
+  --h-type: #79c0ff;
+  --h-num: #ffa657;
+  --h-com: #8b949e;
+  --shadow: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+main { max-width: 1120px; margin: 0 auto; padding: 44px 24px 96px; }
+.col { max-width: 860px; }
+@media (max-width: 560px) { main { padding: 28px 16px 56px; } }
+
+code, pre, .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+p code, li code, .fix code, .problem code, .note code {
+  font-size: .86em;
+  background: var(--surface-2);
+  padding: .1em .38em;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+/* header */
+header { margin-bottom: 24px; }
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.kicker {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0;
+}
+h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -.02em;
+  text-wrap: balance;
+  margin: 0 0 10px;
+}
+.sub {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 2px 0;
+  word-break: break-word;
+}
+.sub b { color: var(--fg-soft); font-weight: 500; }
+
+/* theme toggle */
+.theme-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 58px;
+  height: 28px;
+  padding: 0 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-2);
+  cursor: pointer;
+  position: relative;
+  transition: background .16s, border-color .16s;
+}
+.theme-toggle svg { width: 13px; height: 13px; flex: none; color: var(--muted); z-index: 1; }
+.theme-toggle .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  transition: transform .18s ease;
+}
+:root[data-theme="dark"] .theme-toggle .knob { transform: translateX(30px); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* stat tiles */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 22px 0 0;
+}
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+.stat .num {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+}
+.stat .lbl {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 7px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.stat .lbl i { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
+.stat.s-bug .lbl i { background: var(--bug); }
+.stat.s-risk .lbl i { background: var(--risk); }
+.stat.s-nit .lbl i { background: var(--nit); }
+.stat.s-bug .num { color: var(--bug); }
+.stat.s-risk .num { color: var(--risk); }
+.stat.s-nit .num { color: var(--nit); }
+.stackbar {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--surface-2);
+  margin-top: 12px;
+  border: 1px solid var(--border);
+}
+.stackbar i { display: block; }
+.stackbar .s-bug { background: var(--bug); }
+.stackbar .s-risk { background: var(--risk); }
+.stackbar .s-nit { background: var(--nit); }
+@media (max-width: 560px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+/* filter bar */
+.filters {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 24px 0 4px;
+  padding: 12px 0;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.flabel {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.chip, .filters select {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-soft);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 5px 11px;
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.filters select { padding: 5px 8px; }
+.chip .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+.chip[data-sev="bug"] .dot { background: var(--bug); }
+.chip[data-sev="risk"] .dot { background: var(--risk); }
+.chip[data-sev="nit"] .dot { background: var(--nit); }
+.chip .n { color: var(--muted); margin-left: 7px; font-variant-numeric: tabular-nums; }
+.chip[aria-pressed="true"] { color: var(--fg); background: var(--surface-2); border-color: var(--border-strong); }
+.chip[aria-pressed="false"] { opacity: .5; }
+.chip[aria-pressed="false"] .dot { filter: grayscale(1); }
+.chip:focus-visible, .filters select:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* group heads */
+.grouphead {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 32px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.grouphead::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+/* findings */
+.list { display: flex; flex-direction: column; gap: 10px; }
+.finding {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--sev);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.finding[data-sev="bug"] { --sev: var(--bug); --sev-tint: var(--bug-tint); }
+.finding[data-sev="risk"] { --sev: var(--risk); --sev-tint: var(--risk-tint); }
+.finding[data-sev="nit"] { --sev: var(--nit); --sev-tint: var(--nit-tint); }
+.finding > summary { list-style: none; cursor: pointer; padding: 15px 18px; display: block; }
+.finding > summary::-webkit-details-marker { display: none; }
+.finding.flat > summary { cursor: default; }
+
+.fhead { display: flex; flex-wrap: wrap; gap: 7px 9px; align-items: center; }
+.sev-chip {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--sev);
+  background: var(--sev-tint);
+  border: 1px solid color-mix(in srgb, var(--sev) 30%, transparent);
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+.loc-pill {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  color: var(--fg-soft);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+.fid { font-family: "JetBrains Mono", monospace; font-size: 11.5px; color: var(--muted); }
+.rubric {
+  margin-left: auto;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.finding p { margin: 10px 0 0; max-width: 74ch; }
+.finding p.problem { font-size: 13.5px; color: var(--fg); }
+.finding p.fix { color: var(--fg-soft); font-size: 13.5px; }
+.finding p.fix::before { content: "\2192\00a0"; color: var(--accent); font-weight: 700; }
+.finding p.fix b { color: var(--fg); font-weight: 600; }
+.finding .note {
+  margin-top: 11px;
+  font-size: 12.5px;
+  color: var(--fg-soft);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 12px;
+}
+.toggle-hint {
+  margin-top: 11px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  color: var(--accent);
+  letter-spacing: .03em;
+}
+.finding[open] .toggle-hint .more { display: none; }
+.toggle-hint .less { display: none; }
+.finding[open] .toggle-hint .less { display: inline; }
+
+/* before / after */
+.ba {
+  border-top: 1px solid var(--border);
+  padding: 14px 18px 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  gap: 12px;
+}
+@media (max-width: 820px) { .ba { grid-template-columns: 1fr; } }
+.ba figure { margin: 0; min-width: 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+.ba figcaption {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+}
+.ba figure.before figcaption { background: var(--del-tint); color: var(--del-fg); border-bottom: 1px solid var(--del-border); }
+.ba figure.after figcaption { background: var(--add-tint); color: var(--add-fg); border-bottom: 1px solid var(--add-border); }
+.ba figure.before figcaption::before { content: "\2212\00a0"; }
+.ba figure.after figcaption::before { content: "+\00a0"; }
+pre {
+  margin: 0;
+  background: var(--code-bg);
+  padding: 12px 14px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.65;
+  tab-size: 4;
+}
+pre code { background: none; padding: 0; border: 0; font-size: inherit; white-space: pre; }
+pre { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+pre::-webkit-scrollbar { height: 8px; width: 8px; }
+pre::-webkit-scrollbar-track { background: transparent; }
+pre::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+
+.hljs { color: var(--code-fg); background: transparent; }
+.hljs-keyword, .hljs-meta, .hljs-meta .hljs-keyword { color: var(--h-kw); font-weight: 500; }
+.hljs-string, .hljs-symbol { color: var(--h-str); }
+.hljs-title, .hljs-title.function_, .hljs-title.class_, .hljs-section { color: var(--h-fn); }
+.hljs-type, .hljs-built_in, .hljs-title.class_.inherited__ { color: var(--h-type); }
+.hljs-number, .hljs-literal { color: var(--h-num); }
+.hljs-comment, .hljs-quote { color: var(--h-com); font-style: italic; }
+.hljs-attr, .hljs-property, .hljs-variable, .hljs-params, .hljs-punctuation, .hljs-operator { color: var(--code-fg); }
+
+/* footer */
+footer {
+  margin-top: 44px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+footer p { margin: 7px 0; max-width: 74ch; }
+footer b { color: var(--fg-soft); }
+footer code { color: var(--fg-soft); }
+.empty { padding: 36px 4px; color: var(--muted); font-family: "JetBrains Mono", monospace; font-size: 13px; }
+.err { color: var(--bug); font-family: "JetBrains Mono", monospace; font-size: 13px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<script id="rust-review-data" type="application/json">
+{"meta":{"target":"","base":"","generated":"","reproduce":""},"findings":[]}
+</script>
+
+<main>
+  <header class="col">
+    <div class="header-top">
+      <p class="kicker">rust-skills / review</p>
+      <button class="theme-toggle" id="theme-toggle" role="switch" aria-checked="false" aria-label="Toggle dark mode" title="Toggle dark mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+        <span class="knob"></span>
+      </button>
+    </div>
+    <h1 id="h-title">rust-review report</h1>
+    <p class="sub" id="m-target"></p>
+    <p class="sub" id="m-base"></p>
+  </header>
+
+  <section class="stats col" aria-label="summary">
+    <div class="stat"><div class="num" id="s-total">0</div><div class="lbl">total</div>
+      <div class="stackbar" id="s-bar"></div></div>
+    <div class="stat s-bug"><div class="num" id="s-bug">0</div><div class="lbl"><i></i>bugs</div></div>
+    <div class="stat s-risk"><div class="num" id="s-risk">0</div><div class="lbl"><i></i>risks</div></div>
+    <div class="stat s-nit"><div class="num" id="s-nit">0</div><div class="lbl"><i></i>nits</div></div>
+  </section>
+
+  <div class="filters col" role="group" aria-label="filters">
+    <span class="flabel">severity</span>
+    <button class="chip" data-sev="bug" aria-pressed="true"><span class="dot"></span>bug<span class="n" data-n="bug">0</span></button>
+    <button class="chip" data-sev="risk" aria-pressed="true"><span class="dot"></span>risk<span class="n" data-n="risk">0</span></button>
+    <button class="chip" data-sev="nit" aria-pressed="true"><span class="dot"></span>nit<span class="n" data-n="nit">0</span></button>
+    <span class="flabel" style="margin-left:10px">rubric</span>
+    <select id="rubric-filter"><option value="all">all</option></select>
+  </div>
+
+  <div class="list" id="list"></div>
+  <p class="empty col" id="empty" hidden>Nothing matches the current filter.</p>
+
+  <footer class="col">
+    <p><b>The clippy line.</b> Every finding here is a design or correctness call <code>cargo clippy</code> cannot express. Run <code>cargo clippy --all-targets</code> and <code>cargo check</code> separately.</p>
+    <p id="m-repro"></p>
+    <p><b>uncovered.</b> Findings tagged <code>uncovered</code> match no rubric yet: <code>/learn</code> candidates.</p>
+  </footer>
+</main>
+
+<script>
+const GROUPS = [["bug", "Bugs"], ["risk", "Risks"], ["nit", "Nits"]];
+const STORE = "rust-review-filters";
+
+function esc(s) {
+  return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+}
+
+let state = { sev: { bug: true, risk: true, nit: true }, rubric: "all" };
+try {
+  const s = JSON.parse(localStorage.getItem(STORE) || "null");
+  if (s && s.sev) state = s;
+} catch (e) { /* default */ }
+
+let DATA = { meta: {}, findings: [] };
+
+function loadData() {
+  const tag = document.getElementById("rust-review-data");
+  try {
+    const d = JSON.parse(tag.textContent);
+    if (d && Array.isArray(d.findings) && d.findings.length) return Promise.resolve(d);
+  } catch (e) { /* fall through */ }
+  return fetch("./findings.json")
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .catch(() => null);
+}
+
+function renderMeta(meta) {
+  meta = meta || {};
+  if (meta.target) document.getElementById("m-target").innerHTML = "target &nbsp; <b>" + esc(meta.target) + "</b>";
+  const bits = [];
+  if (meta.base) bits.push("base " + esc(meta.base));
+  if (meta.generated) bits.push("generated " + esc(meta.generated));
+  document.getElementById("m-base").innerHTML = bits.join(" &nbsp;/&nbsp; ");
+  if (meta.reproduce) {
+    document.getElementById("m-repro").innerHTML = "<b>reproduce.</b> <code>" + esc(meta.reproduce) + "</code>";
+  }
+}
+
+function renderStats(findings) {
+  const n = { bug: 0, risk: 0, nit: 0 };
+  findings.forEach(f => { if (n[f.sev] != null) n[f.sev]++; });
+  document.getElementById("s-total").textContent = findings.length;
+  document.getElementById("s-bug").textContent = n.bug;
+  document.getElementById("s-risk").textContent = n.risk;
+  document.getElementById("s-nit").textContent = n.nit;
+
+  const bar = document.getElementById("s-bar");
+  bar.innerHTML = "";
+  for (const [sev] of GROUPS) {
+    if (!n[sev]) continue;
+    const i = document.createElement("i");
+    i.className = "s-" + sev;
+    i.style.flex = String(n[sev]);
+    bar.appendChild(i);
+  }
+  document.querySelectorAll(".chip .n").forEach(el => { el.textContent = n[el.dataset.n] || 0; });
+}
+
+function buildRubricOptions(findings) {
+  const rubrics = [...new Set(findings.map(f => f.rubric).filter(Boolean))].sort();
+  const sel = document.getElementById("rubric-filter");
+  sel.innerHTML = '<option value="all">all</option>' +
+    rubrics.map(r => '<option value="' + esc(r) + '">' + esc(r) + "</option>").join("");
+  sel.value = state.rubric;
+}
+
+function render() {
+  document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", String(!!state.sev[c.dataset.sev])));
+  document.getElementById("rubric-filter").value = state.rubric;
+
+  const listEl = document.getElementById("list");
+  listEl.innerHTML = "";
+  let shown = 0;
+
+  for (const [sev, label] of GROUPS) {
+    if (!state.sev[sev]) continue;
+    const rows = DATA.findings.filter(f => f.sev === sev && (state.rubric === "all" || f.rubric === state.rubric));
+    if (!rows.length) continue;
+    shown += rows.length;
+
+    const h = document.createElement("p");
+    h.className = "grouphead col";
+    h.textContent = label + " / " + rows.length;
+    listEl.appendChild(h);
+
+    for (const f of rows) {
+      const hasBA = !!(f.before || f.after);
+      const el = document.createElement("details");
+      el.className = "finding" + (hasBA ? "" : " flat");
+      el.dataset.sev = f.sev;
+      if (hasBA) el.open = true;
+
+      let html = "<summary><div class='fhead'>"
+        + "<span class='sev-chip'>" + esc(f.sev) + "</span>"
+        + "<span class='loc-pill'>" + esc(f.loc || "") + "</span>"
+        + "<span class='fid'>" + esc(f.id || "") + "</span>"
+        + "<span class='rubric'>" + esc(f.rubric || "") + "</span>"
+        + "</div>"
+        + "<p class='problem'>" + (f.problem || "") + "</p>"
+        + "<p class='fix'>" + (f.fix || "") + "</p>";
+      if (hasBA) html += "<p class='toggle-hint'><span class='more'>&#9656; before / after</span><span class='less'>&#9662; hide diff</span></p>";
+      html += "</summary>";
+      if (hasBA) {
+        html += "<div class='ba'>"
+          + "<figure class='before'><figcaption>before</figcaption><pre><code class='language-rust'>"
+          + esc(f.before || "") + "</code></pre></figure>"
+          + "<figure class='after'><figcaption>after, proposed</figcaption><pre><code class='language-rust'>"
+          + esc(f.after || "") + "</code></pre></figure></div>";
+      }
+      if (f.note) {
+        const noteHtml = "<p class='note'>" + f.note + "</p>";
+        if (hasBA) html = html.replace("</div></div>", "</div>" + noteHtml + "</div>");
+        else html = html.replace("</summary>", noteHtml + "</summary>");
+      }
+      el.innerHTML = html;
+      listEl.appendChild(el);
+    }
+  }
+
+  document.getElementById("empty").hidden = shown !== 0;
+
+  if (window.hljs) {
+    hljs.configure({ languages: ["rust"] });
+    document.querySelectorAll("pre code").forEach(b => hljs.highlightElement(b));
+  }
+  try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* ignore */ }
+}
+
+document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => {
+  state.sev[c.dataset.sev] = !state.sev[c.dataset.sev];
+  render();
+}));
+document.getElementById("rubric-filter").addEventListener("change", e => {
+  state.rubric = e.target.value;
+  render();
+});
+
+const themeBtn = document.getElementById("theme-toggle");
+function syncTheme() {
+  themeBtn.setAttribute("aria-checked", String(document.documentElement.dataset.theme === "dark"));
+}
+themeBtn.addEventListener("click", () => {
+  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("rust-review-theme", next); } catch (e) { /* ignore */ }
+  syncTheme();
+});
+syncTheme();
+
+loadData().then(d => {
+  if (!d) {
+    document.getElementById("list").innerHTML =
+      "<p class='err'>No findings data. Open through a local server "
+      + "(<code>python3 -m http.server</code>) so ./findings.json loads, or regenerate the report.</p>";
+    return;
+  }
+  DATA = { meta: d.meta || {}, findings: Array.isArray(d.findings) ? d.findings : [] };
+  renderMeta(DATA.meta);
+  renderStats(DATA.findings);
+  buildRubricOptions(DATA.findings);
+  render();
+});
+</script>
+</body>
+</html>

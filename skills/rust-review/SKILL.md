@@ -71,8 +71,52 @@ If you spot a real problem no rubric addresses, report it under severity with `[
 instead of a rubric name, and tell the user it is a candidate for `/learn` so it can be
 folded into a rubric later.
 
+### 5. HTML report (optional)
+
+Only when the user asks for a report (`--report`, "html report", "generate the report").
+The terminal finding list from step 3 is still the primary output; this is a second copy.
+
+Pattern mirrors unlighthouse: a hidden dir at the root of the reviewed repo, a static shell
+copied verbatim, the run's data written next to it.
+
+1. In the reviewed repo, create `.rust-review/`.
+2. Copy this skill's `report/template.html` to `.rust-review/index.html` unchanged.
+3. Build the run data:
+
+   ```json
+   {
+     "meta": {
+       "target": "<what was reviewed, e.g. src/domain/google_calendar/>",
+       "base": "<ref range or 'working tree' or 'file'>",
+       "generated": "<YYYY-MM-DD>",
+       "reproduce": "/rust-skills:rust-review <args> --report"
+     },
+     "findings": [
+       { "id": "F-01", "sev": "bug", "rubric": "rust-idioms", "loc": "client.rs:250",
+         "problem": "<inline HTML, use <code>...</code>>", "fix": "<inline HTML>",
+         "before": "<raw Rust>", "after": "<raw Rust>", "note": "<inline HTML, optional>" }
+     ]
+   }
+   ```
+
+   `sev` is `bug` / `risk` / `nit`. `rubric` is the rubric name or `uncovered`. `before` and
+   `after` are optional and come as a pair; include them only where the fix is mechanical.
+   Give findings stable ids in report order (`F-01`, `F-02`, ...).
+
+4. Write that JSON two ways:
+   - to `.rust-review/findings.json`
+   - inline into `.rust-review/index.html`, replacing the one line inside
+     `<script id="rust-review-data" type="application/json">`.
+
+   The inline copy makes double-click work; `findings.json` is for diffing and re-render.
+5. Ensure the reviewed repo ignores it: add `.rust-review/` to its `.gitignore` if absent.
+6. Tell the user the path and that `open .rust-review/index.html` shows it.
+
+Do not invent findings to fill the report. It contains exactly what step 3 reported.
+
 ## Boundaries
 
-Review only. Does not edit code, does not run `cargo clippy` or `cargo check` (tell the
-user to run both separately), does not approve or merge. Output is the finding list, ready
-to paste into a PR.
+Review only. Does not edit code (the HTML report is the one file it writes, and only on
+request), does not run `cargo clippy` or `cargo check` (tell the user to run both
+separately), does not approve or merge. Primary output is the finding list, ready to paste
+into a PR.

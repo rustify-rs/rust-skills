@@ -6,6 +6,18 @@ Versions match `.claude-plugin/plugin.json`. Dates are `YYYY-MM-DD`.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-08
+
+### Added
+
+- `rust-review` optional HTML report (`--report`): writes `.rust-review/index.html` +
+  `.rust-review/findings.json` into the reviewed repo, unlighthouse-style. Self-contained
+  static shell (`skills/rust-review/report/template.html`), no build step: neutral
+  light UI with a persisted dark toggle, Rust syntax highlight via highlight.js, stat
+  tiles, severity + rubric filters, before/after diff cards on mechanical fixes. Data
+  injected inline so double-click works; `findings.json` sits next to it for diffing
+  and re-render.
+
 ## [0.2.0] - 2026-09-08
 
 ### Added
