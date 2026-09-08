@@ -33,11 +33,29 @@ A skill ships only if it clears all four:
 - Error messages, identifiers, and code follow the conventions the skill itself teaches.
 - Keep `SKILL.md` under ~250 lines. Split into a second skill before it sprawls.
 
-## Testing a skill locally
+## Changing a skill from field use
+
+Most edits after the initial version should come through the learnings loop, not direct
+PRs:
+
+1. A correction gets captured to `LEARNINGS.md` (`status: pending`) from real work.
+2. `skill-maintainer` batches pending entries, decides promote / merge / reject behind a
+   review gate, edits the rubric, bumps `.claude-plugin/plugin.json` `version`, and adds a
+   `CHANGELOG.md` line.
+
+A direct PR editing a rubric body should either reference a folded `LEARNINGS.md` entry or
+justify why it bypasses the loop (typos, broken examples, formatting).
+
+## Testing locally
+
+```bash
+claude --plugin-dir ./
+```
+
+Then run `/rust-skills:<name>` against a real file. Or copy a single skill:
 
 ```bash
 cp -r skills/<name> ~/.claude/skills/
 ```
 
-Restart Claude Code, run `/<name>` against a real file, check the findings are ones you'd
-actually make in review.
+Run `claude plugin validate ./` before opening a PR.

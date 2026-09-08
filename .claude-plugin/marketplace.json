@@ -1,0 +1,23 @@
+{
+  "name": "rustify-rs",
+  "owner": {
+    "name": "rustify.rs",
+    "url": "https://rustify.rs"
+  },
+  "description": "rustify.rs skills for writing and reviewing good Rust, as an installable Claude Code plugin.",
+  "plugins": [
+    {
+      "name": "rust-skills",
+      "source": "./",
+      "description": "Rubric skills (error design, idioms, async, api design), a rust-review orchestrator, and a self-improving learnings loop.",
+      "category": "engineering",
+      "keywords": [
+        "rust",
+        "code-review",
+        "error-handling",
+        "async",
+        "api-design"
+      ]
+    }
+  ]
+}
